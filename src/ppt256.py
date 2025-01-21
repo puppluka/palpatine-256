@@ -6,6 +6,70 @@ from PIL import Image
 rows, cols = 16, 16
 cell_grid = []
 palette = []
+file_path = None
+
+def open_file():
+  global palette, file_path
+  file_paths = filedialog.askopenfilenames(title="Select a Palette File", filetypes=[
+    ("PNG Files", "*.png"),
+    ("JASC Palette", "*.pal"),
+    ("Microsoft Palette", "*.pal"),
+    ("Build Engine Palette", "*.DAT"),
+    ("Photoshop Palette", "*.act"),
+    ("GIMP Palette", "*.gpl"),
+    ])
+  if not file_paths: return
+
+  palette = []
+  for file_path in file_paths:
+    if file_path.endswith(".png"):
+      open_png(file_path)
+    elif file_path.endswith(".pal"):
+      with open(file_path, "rb") as f:
+        header = f.read(12)
+        if header.startswith(b"JASC-PAL"):
+          open_jasc_pal(file_path)
+        else:
+          open_ms_pal(file_path)
+    elif file_path.endswith(".DAT"):
+      open_dat(file_path)
+    elif file_path.endswith(".act"):
+      open_act(file_path)
+    elif file_path.endswith(".gpl"):
+      open_gpl(file_path)
+
+def load_palette():
+  for x in range(rows):
+    for y in range(cols):
+      color_index = x * cols + y
+      r, g, b = palette[color_index]
+      hex_color = f"#{r:02x}{g:02x}{b:02x}"
+      cell_grid[x][y].config(bg=hex_color)
+
+def export_file():
+  global file_path
+  file_path = filedialog.asksaveasfilename(title="Select a Palette File", filetypes=[
+    ("PNG Files", "*.png"),
+    ("JASC Palette", "*.pal"),
+    ("Microsoft Palette", "*.mspal"),
+    ("Build Engine Palette", "*.DAT"),
+    ("Photoshop Palette", "*.act"),
+    ("GIMP Palette", "*.gpl"),
+    ],
+    defaultextension="*.*")
+  if not file_path: return
+
+  print(file_path)
+  if file_path.endswith(".png"):
+    export_png()
+  elif file_path.endswith(".pal"):
+    export_jasc_pal()
+  elif file_path.endswith(".mspal"):
+    export_ms_pal()
+  elif file_path.endswith(".act"):
+    export_act()
+  elif file_path.endswith(".gpl"):
+    export_gpl()
 
 def resource_path(relative_path):
   try:
@@ -24,12 +88,7 @@ def _grid():
       row.append(cell)
     cell_grid.append(row)
 
-def open_png():
-  global palette
-  file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("PNG Files", "*.png")])
-  if not file_path: return
-
-  palette = []
+def open_png(file_path):
   image = Image.open(file_path)
   image = image.convert("RGB")
   width, height = image.size
@@ -45,18 +104,12 @@ def open_png():
       hex_color = f"#{color[0]:02x}{color[1]:02x}{color[2]:02x}"
       cell_grid[x][y].config(bg=hex_color)
 
-def open_jasc_pal():
-  global palette
-  file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("JASC Palette", "*.pal")])
-  if not file_path: return
-
+def open_jasc_pal(file_path):
   with open(file_path, "r") as f:
     data = f.readlines()
 
   if data[0].strip() != "JASC-PAL" or data[1].strip() != "0100":
     messagebox.showerror("Error", "Invalid JASC Palette file.")
-  
-  palette = []
 
   for line in data[3:]:
     line = line.strip()
@@ -73,47 +126,38 @@ def open_jasc_pal():
       
     palette.append((r, g, b))
   
-  for x in range(rows):
-    for y in range(cols):
-      color_index = x * cols + y
-      r, g, b = palette[color_index]
-      hex_color = f"#{r:02x}{g:02x}{b:02x}"
-      cell_grid[x][y].config(bg=hex_color)
+  load_palette()
 
-def open_act():
-  global palette
-  file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("Photoshop .act", "*.act")])
-  if not file_path: return
-
+def open_dat(file_path):
   with open(file_path, "rb") as f:
     data = f.read()
 
-  palette = []
+  for i in range(256):
+    r = data[i * 3] * 4
+    g = data[i * 3 + 1] * 4
+    b = data[i * 3 + 2] * 4
+    palette.append((r, g, b))
+
+  load_palette()
+
+def open_act(file_path):
+  with open(file_path, "rb") as f:
+    data = f.read()
 
   for i in range(0, 768, 3):
     r, g, b = data[i:i+3]
     palette.append((r, g, b))
 
-  for x in range(rows):
-    for y in range(cols):
-      color_index = x * cols + y
-      r, g, b = palette[color_index]
-      hex_color = f"#{r:02x}{g:02x}{b:02x}"
-      cell_grid[x][y].config(bg=hex_color)
+  load_palette()
 
-def open_ms_pal():
-  global palette
-  file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("Microsoft Palette", "*.pal")])
-  if not file_path: return
-
+def open_ms_pal(file_path):
   with open(file_path, "rb") as f:
-    data = f.readlines()
+    data = f.read()
   
   if data[:4] != b"RIFF":
     messagebox.showerror("Error", "Invalid Microsoft PAL file.")
     return
 
-  palette = []
   offset = 24
   for _ in range(256):
     r = data[offset]
@@ -122,25 +166,14 @@ def open_ms_pal():
     palette.append((r, g, b))
     offset += 4
   
-  for x in range(rows):
-    for y in range(cols):
-      color_index = x * cols + y
-      r, g, b = palette[color_index]
-      hex_color = f"#{r:02x}{g:02x}{b:02x}"
-      cell_grid[x][y].config(bg=hex_color)
+  load_palette()
 
-def open_gpl():
-  global palette
-  file_path = filedialog.askopenfilename(title="Select a File", filetypes=[("GIMP Palette", "*.gpl")])
-  if not file_path: return
-
+def open_gpl(file_path):
   with open(file_path, "r") as f:
     data = f.readlines()
 
   if data[0].strip() != "GIMP Palette":
     messagebox.showerror("Error", "Invalid GIMP Palette file.")
-
-  palette = []
 
   for line in data[4:]:
     line = line.strip()
@@ -150,18 +183,10 @@ def open_gpl():
     b = int(parts[2])
     palette.append((r, g, b))
   
-  for x in range(rows):
-    for y in range(cols):
-      color_index = x * cols + y
-      r, g, b = palette[color_index]
-      hex_color = f"#{r:02x}{g:02x}{b:02x}"
-      cell_grid[x][y].config(bg=hex_color)
+  load_palette()
 
 def export_gpl():
-  file_path = filedialog.asksaveasfilename(title="Save as GIMP Palette", filetypes=[("GIMP Palette", "*.gpl")])
-  if not file_path: return
-
-  if not file_path.endswith(".gpl"): file_path += ".gpl"
+  global file_path
 
   file_name = os.path.basename(file_path)
   file_name_ne, _ = os.path.splitext(file_name)
@@ -175,15 +200,12 @@ def export_gpl():
   
     for i in range(0, len(flat_palette), 3):
         r = flat_palette[i]
-        g = flat_palette[i +1]
-        b = flat_palette[i +2]
+        g = flat_palette[i + 1]
+        b = flat_palette[i + 2]
         f.write(f"{r}\t{g}\t{b}\n")
   
 def export_jasc_pal():
-  file_path = filedialog.asksaveasfilename(title="Save as JASC PAL", filetypes=[("JASC Palette", "*.pal")])
-  if not file_path: return
-
-  if not file_path.endswith(".pal"): file_path += ".pal"
+  global file_path
 
   flat_palette = [component for color in palette for component in color]
 
@@ -194,17 +216,15 @@ def export_jasc_pal():
   
     for i in range(0, len(flat_palette), 3):
       r = flat_palette[i]
-      g = flat_palette[i +1]
-      b = flat_palette[i +2]
+      g = flat_palette[i + 1]
+      b = flat_palette[i + 2]
       f.write(f"{r}\t{g}\t{b}\n")
 
 def export_ms_pal():
-  file_path = filedialog.asksaveasfilename(title="Save as Microsoft PAL", filetypes=[("Microsoft Palette", "*.pal")])
-  if not file_path: return
+  global file_path
 
-  if not file_path.endswith(".pal"): file_path += ".pal"
-
-  flat_palette = [component for color in palette for component in color]
+  if file_path.endswith(".mspal"): 
+    file_path = file_path[:-5] + "pal"
 
   with open(file_path, "wb") as f:
     f.write(b"RIFF")
@@ -220,10 +240,7 @@ def export_ms_pal():
       f.write(bytes([r, g, b, 0]))
 
 def export_act():
-  file_path = filedialog.asksaveasfilename(title="Save as Photoshop ACT", filetypes=[("Photoshop .act", "*.act")])
-  if not file_path: return
-
-  if not file_path.endswith(".act"): file_path += ".act"
+  global file_path
 
   flat_palette = [component for color in palette for component in color]
 
@@ -231,10 +248,8 @@ def export_act():
     f.write(bytes(flat_palette))
 
 def export_png():
-  file_path = filedialog.asksaveasfilename(title="Save as PNG 8-bit File", filetypes=[("PNG Files", "*.png")])
-  if not file_path: return
+  global file_path
 
-  if not file_path.endswith(".png"): file_path += ".png"
   image = Image.new("P", (16,16))
 
   flat_palette = [component for color in palette for component in color]
@@ -279,9 +294,10 @@ def about():
 def help():
   message = """
 Palpatine 256 supports the conversion of PNG, Microsoft Palette,
-JASC Palette, GIMP GPL, and Photoshop ACT palettes to 8-bit PNG, 
-Microsoft Palette, JASC Palette, GIMP GPL, or Photoshop ACT,
-while preserving the original index order of the source file.
+JASC Palette, Build Engine PALETTE.DAT, GIMP GPL, and Photoshop ACT 
+palettes to 8-bit PNG, Microsoft Palette, JASC Palette, GIMP GPL, 
+or Photoshop ACT, while preserving the original index order of 
+the source file.
 
 You can create a source image in any graphics editor and save it
 as a 16×16 PNG file for use with Palpatine 256.
@@ -325,30 +341,24 @@ menu = tk.Menu(root)
 file_menu = tk.Menu(menu, tearoff=0)
 menu.add_cascade(label="File", menu=file_menu)
 import_file = tk.Menu(file_menu, tearoff=0)
-file_menu.add_cascade(label="Import File...", menu=import_file)
-import_file.add_cascade(label="Image .png", command=open_png)
-import_file.add_cascade(label="JASC Palette", command=open_jasc_pal)
-import_file.add_cascade(label="Microsoft Palette", command=open_ms_pal)
-import_file.add_cascade(label="Photoshop .act", command=open_act)
-import_file.add_cascade(label="GIMP .gpl", command=open_gpl)
-export_file = tk.Menu(file_menu, tearoff=0)
+file_menu.add_command(label="Import File...", command=open_file, accelerator="Ctrl+O")
 file_menu.add_separator()
-file_menu.add_cascade(label="Export File...", menu=export_file)
-export_file.add_cascade(label="Image PNG 8-bit", command=export_png)
-export_file.add_cascade(label="JASC Palette", command=export_jasc_pal)
-export_file.add_cascade(label="Microsoft Palette", command=export_ms_pal)
-export_file.add_cascade(label="Photoshop .act", command=export_act)
-export_file.add_cascade(label="GIMP .gpl", command=export_gpl)
+file_menu.add_command(label="Export File...", command=export_file, accelerator="Ctrl+S")
 file_menu.add_separator()
-file_menu.add_cascade(label="Exit", command=lambda: root.destroy())
+file_menu.add_command(label="Exit", command=lambda: root.destroy(), accelerator="Ctrl+H")
 help_menu = tk.Menu(menu, tearoff=0)
 menu.add_cascade(label="Help", menu=help_menu)
-help_menu.add_cascade(label="Help", command=help)
+help_menu.add_command(label="Help", command=help, accelerator="Ctrl+Q")
 help_menu.add_separator()
-help_menu.add_cascade(label="About", command=about)
+help_menu.add_command(label="About", command=about)
 
 root.config(menu=menu)
 
 _grid()
+
+root.bind("<Control-o>", lambda event: open_file())
+root.bind("<Control-s>", lambda event: export_file())
+root.bind("<Control-h>", lambda event: help())
+root.bind("<Control-q>", lambda event: root.destroy())
 
 root.mainloop()
