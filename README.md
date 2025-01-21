@@ -1,6 +1,6 @@
 # Palpatine 256
 
-Palpatine 256 supports the conversion of PNG, Microsoft Palette,
+Palpatine 256 supports the conversion of PNG, Microsoft Palette, Build Engine PALETTE.DAT,
 JASC Palette, GIMP GPL, and Photoshop ACT palettes to 8-bit PNG, 
 Microsoft Palette, JASC Palette, GIMP GPL, or Photoshop ACT,
 while preserving the original index order of the source file.
