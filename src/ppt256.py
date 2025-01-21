@@ -8,6 +8,14 @@ cell_grid = []
 palette = []
 file_path = None
 
+def resource_path(relative_path):
+  if hasattr(sys, '_MEIPASS'):
+      base_path = sys._MEIPASS
+  else:
+      base_path = os.path.abspath(".")
+
+  return os.path.join(base_path, relative_path)
+
 def open_file():
   global palette, file_path
   file_paths = filedialog.askopenfilenames(title="Select a Palette File", filetypes=[
@@ -70,13 +78,6 @@ def export_file():
     export_act()
   elif file_path.endswith(".gpl"):
     export_gpl()
-
-def resource_path(relative_path):
-  try:
-    base_path = sys._MEIPASS
-  except Exception:
-    base_path = os.path.abspath(".")
-  return os.path.join(base_path, relative_path)
 
 def _grid():
   
@@ -266,7 +267,7 @@ def export_png():
 def about():
     message = """
         Palpatine 256
-        v1.0
+        v1.1
         © 2025 voidsrc
         contact@voidsrc.com
     """
