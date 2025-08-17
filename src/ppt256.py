@@ -380,7 +380,7 @@ file, select File > Export File and choose GIMP .gpl.
 root = tk.Tk()
 root.title("Palpatine 256")
 root.geometry("570x620")
-# root.iconbitmap(resource_path("icon.ico"))
+root.iconbitmap(resource_path("icon.ico"))
 
 frame = tk.Frame(root)
 frame.pack(expand=True)
